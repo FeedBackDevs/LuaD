@@ -84,8 +84,11 @@ import luad.conversions.helpers;
  */
 void pushValue(T)(lua_State* L, T value) if(!isUserStruct!T)
 {
-	static if(is(T : LuaObject))
+	static if(is(T : const(LuaObject)))
+	{
+		static assert(!is(T == const(U), U), "LuaObject is incompatible with 'const'...");
 		value.push();
+	}
 
 	else static if(is(T == LuaDynamic))
 		value.object.push();

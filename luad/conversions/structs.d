@@ -113,21 +113,11 @@ private void pushMeta(T)(lua_State* L)
 void pushStruct(T)(lua_State* L, ref T value) if (is(T == struct))
 {
 	// if T is immutable, we can capture a reference, otherwise we need to take a copy
-	static if(is(T == immutable)) // TODO: verify that this is actually okay?
-	{
-		auto udata = cast(Ref!T*)lua_newuserdata(L, Ref!T.sizeof);
-		*udata = Ref!T(value);
-	}
+	auto udata = cast(Ref!T*)lua_newuserdata(L, Ref!T.sizeof);
+	static if(is(T == immutable))
+		*udata = Ref!T(value); // TODO: verify that this is actually okay?
 	else
-	{
-		Ref!T* udata = cast(Ref!T*)lua_newuserdata(L, Ref!T.sizeof);
-		// TODO: we should try and call the postblit here maybe...?
-//		T* copy = new T(value);
-//		T* copy = std.conv.emplace(cast(T*)GC.malloc(T.sizeof), value);
-		Unqual!T* copy = cast(Unqual!T*)GC.malloc(T.sizeof);
-		*copy = value;
-		*udata = Ref!T(*copy);
-	}
+		*udata = Ref!T(*emplace!T(cast(T*)GC.malloc(T.sizeof), value));
 
 	GC.addRoot(udata);
 

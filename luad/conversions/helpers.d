@@ -13,7 +13,7 @@ import core.memory;
 import std.traits;
 import std.typetuple;
 
-package:
+package(luad):
 
 // resolves the proper return type for functions that return inout(T)
 template InOutReturnType(alias func, T)
@@ -93,7 +93,7 @@ alias AliasMember(T, string member) = Alias!(__traits(getMember, T, member));
 
 enum isInternal(string field) = field.length >= 2 && field[0..2] == "__";
 enum isMemberFunction(T, string member) = mixin("is(typeof(&T.init." ~ member ~ ") == delegate)");
-enum isUserStruct(T) = is(T == struct) && !is(T == LuaObject) && !is(T == LuaTable) && !is(T == LuaDynamic) && !is(T == LuaFunction) && !is(T == Ref!S, S);
+enum isUserStruct(T) = is(T == struct) && !is(Unqual!T == LuaObject) && !is(Unqual!T == LuaTable) && !is(Unqual!T == LuaDynamic) && !is(Unqual!T == LuaFunction) && !is(T == Ref!S, S);
 enum isValueType(T) = isUserStruct!T || isStaticArray!T;
 
 enum canRead(T, string member) = mixin("__traits(compiles, (T* a) => a."~member~")");
@@ -130,10 +130,10 @@ template isOperator(string field)
 
 template isProperty(T, string member)
 {
-	static if(isMemberFunction!(T, member))
-		enum isProperty = functionAttributes!(mixin("T.init." ~ member)) & FunctionAttribute.property;
-	else
-		enum isProperty = false;
+	import std.meta : AliasSeq;
+	import std.traits : FunctionTypeOf;
+	alias sym = AliasSeq!(__traits(getMember, T, member))[0];
+	enum isProperty = !is(typeof(sym) == function) && is(FunctionTypeOf!(typeof(&sym)) == function);
 }
 
 template skipMember(T, string member)
@@ -308,15 +308,13 @@ void pushSetter(T, string member)(lua_State* L)
 // TODO: exclude private members (I smell DMD bugs...)
 template isStaticMember(T, string member)
 {
-	static if(__traits(compiles, mixin("&T." ~ member)))
-	{
-		static if(is(typeof(mixin("&T.init." ~ member)) == delegate))
-			enum isStaticMember = __traits(isStaticFunction, mixin("T." ~ member));
-		else
-			enum isStaticMember = true;
-	}
+	import std.meta : AliasSeq;
+	import std.traits : FunctionTypeOf;
+	alias sym = AliasSeq!(__traits(getMember, T, member))[0];
+	static if (is(typeof(sym) == function) || is(FunctionTypeOf!(typeof(&sym)) == function))
+		enum bool isStaticMember = __traits(isStaticFunction, sym);
 	else
-		enum isStaticMember = false;
+		enum bool isStaticMember = __traits(compiles, &sym);
 }
 
 template mangledTypeCandidates(T)

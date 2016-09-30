@@ -114,6 +114,11 @@ int callFunction(T, RT = BindableReturnType!T)(lua_State* L, T func, ParameterTy
 			// TODO: should we support references for all types?
 			static if(returnsRef!T && isUserStruct!RT)
 				auto ret = Ref!RT(func(args));
+			else static if(is(RT == inout(U), U))
+			{
+				// Note: args[0] might not be the inout arg! We may have to search ParameterTypeTuple!T for inout args :/
+				InOutReturnType!(func, typeof(args[0])) ret = func(args);
+			}
 			else
 				RT ret = func(args);
 			return pushReturnValues(L, ret);
@@ -151,7 +156,7 @@ int callFunction(T, RT = BindableReturnType!T)(lua_State* L, T func, ParameterTy
 package:
 
 // TODO: right now, virtual functions on specialized classes can be called with base classes as 'self', not safe!
-extern(C) int methodWrapper(M, T, bool virtual)(lua_State* L)
+extern(C) int methodWrapper(M, T, bool _virtual)(lua_State* L)
 {
 	alias Args = ParameterTypeTuple!M;
 
@@ -174,7 +179,7 @@ extern(C) int methodWrapper(M, T, bool virtual)(lua_State* L)
 	else
 		T self = *cast(T*)luaL_checkudata(L, 1, toStringz(T.mangleof));
 
-	static if(virtual)
+	static if(_virtual)
 	{
 		alias RT = InOutReturnType!(M.init, T);
 		static if(returnsRef!M && isUserStruct!RT)
@@ -194,7 +199,7 @@ extern(C) int methodWrapper(M, T, bool virtual)(lua_State* L)
 	}
 
 	//Assemble arguments
-	static if(virtual)
+	static if(_virtual)
 	{
 		TreatArgs!(ParameterTypeTuple!VirtualWrapper) allArgs;
 		allArgs[0] = self;

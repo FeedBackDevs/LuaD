@@ -197,7 +197,7 @@ void pushStaticTypeInterface(T)(lua_State* L) if(is(T == class) || is(T == struc
 
 	foreach(member; __traits(derivedMembers, T))
 	{
-		static if(isStaticMember!(T, member))
+		static if(is(typeof(__traits(getMember, T, member))) && isStaticMember!(T, member))
 		{
 			enum isFunction = is(typeof(mixin("T." ~ member)) == function);
 			static if(isFunction)
@@ -209,7 +209,7 @@ void pushStaticTypeInterface(T)(lua_State* L) if(is(T == class) || is(T == struc
 			static if(isFunction)
 				pushValue(L, mixin("&T." ~ member));
 			else
-				pushValue(L, mixin("T." ~ member));
+				pushValue(L, mixin("T." ~ member)); // TODO: this needs to push a function that returns the member.. no?
 
 			lua_setfield(L, -2, member.ptr);
 		}
