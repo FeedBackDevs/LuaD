@@ -285,7 +285,10 @@ void pushMethod(T, string member)(lua_State* L) if (isSomeFunction!(__traits(get
 
 	static if(isVirtual)
 	{
-		alias RT = InOutReturnType!(mixin("T." ~ member), T);
+		import std.meta : AliasSeq;
+		alias method = AliasSeq!(__traits(getMember, T, member))[0];
+
+		alias RT = InOutReturnType!(method, T);
 
 		// Delay vtable lookup until the right time
 		static if(returnsRef!M && isUserStruct!RT)
@@ -305,7 +308,7 @@ void pushMethod(T, string member)(lua_State* L) if (isSomeFunction!(__traits(get
 		lua_pushlightuserdata(L, &virtualWrapper);
 	}
 	else
-		lua_pushlightuserdata(L, mixin("&T.init." ~ member).funcptr);
+		lua_pushlightuserdata(L, mixin("&T." ~ member));
 
 	lua_pushcclosure(L, &methodWrapper!(M, T, isVirtual), 1);
 }

@@ -92,19 +92,27 @@ private:
 alias AliasMember(T, string member) = Alias!(__traits(getMember, T, member));
 
 enum isInternal(string field) = field.length >= 2 && field[0..2] == "__";
-enum isMemberFunction(T, string member) = mixin("is(typeof(&T.init." ~ member ~ ") == delegate)");
 enum isUserStruct(T) = is(T == struct) && !is(Unqual!T == LuaObject) && !is(Unqual!T == LuaTable) && !is(Unqual!T == LuaDynamic) && !is(Unqual!T == LuaFunction) && !is(T == Ref!S, S);
 enum isValueType(T) = isUserStruct!T || isStaticArray!T;
+
+template isMemberFunction(T, string member)
+{
+	import std.meta : AliasSeq;
+	alias sym = AliasSeq!(__traits(getMember, T, member))[0];
+	enum isMemberFunction = isSomeFunction!sym && !__traits(isStaticFunction, sym);
+}
 
 enum canRead(T, string member) = mixin("__traits(compiles, (T* a) => a."~member~")");
 template canCall(T, string member)
 {
+	import std.meta : AliasSeq;
+	alias sym = AliasSeq!(__traits(getMember, T, member))[0];
 	// TODO: this is neither robust, nor awesome. surely there is a better way than this...?
-	static if(mixin("is(typeof(T."~member~") == const)"))
+	static if(is(typeof(sym) == const))
 		enum canCall = !is(T == shared);
-	else static if(mixin("is(typeof(T."~member~") == immutable)"))
+	else static if(is(typeof(sym) == immutable))
 		enum canCall = is(T == immutable);
-	else static if(mixin("is(typeof(T."~member~") == shared)"))
+	else static if(is(typeof(sym) == shared))
 		enum canCall = is(T == shared);
 	else
 		enum canCall = !is(T == const) && !is(T == immutable) && !is(T == shared);
